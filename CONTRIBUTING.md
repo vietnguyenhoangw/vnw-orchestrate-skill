@@ -6,15 +6,17 @@ pushing: `bash scripts/validate.sh`.
 Invariants it checks:
 
 - SKILL.md frontmatter: valid YAML, exactly `name`/`description`,
-  `name == "orchestrate"`, one-line description mentioning `create_agent`,
-  orchestrate, delegate.
-- SKILL.md body keeps: `create_agent`, the ban on the built-in `Agent` tool,
-  `list_profiles`, the opus-escalation rule, `Reviewer`, `$ARGUMENTS`.
+  `name == "orchestrate"`, one-line description mentioning orchestrate,
+  delegate, Haiku, Sonnet.
+- SKILL.md body keeps: the built-in `Agent` tool, the Cheap/Fast and
+  Deep-Reasoning tier labels, the Classification Checklist, the
+  never-launch-Haiku-for-judgment rule, the Concurrency Cap section, and
+  `$ARGUMENTS`.
 - `.claude-plugin/plugin.json` + `marketplace.json`: valid JSON, matching
   `name`, semver `version`, and `description`.
-- `paseo/config.snippet.json`: exactly the `Lead`/`Cheap worker`/`Worker`/
-  `Reviewer` profiles and the `claude-worker` provider.
-- `install.sh`: valid syntax/lint, works locally and piped.
+- `install.sh`: valid syntax/lint, copies `skills/orchestrate` into
+  `~/.claude/skills/orchestrate` locally, and fails cleanly when piped
+  without a local checkout.
 - `README.md`: keeps `## Install`/`## Usage`/`## Troubleshooting` and
   mentions `/orchestrate`.
 - `.release-please-manifest.json`: `.["."]` matches plugin.json `.version`.

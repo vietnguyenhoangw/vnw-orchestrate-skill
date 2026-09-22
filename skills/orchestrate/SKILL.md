@@ -1,131 +1,157 @@
 ---
 name: orchestrate
-description: "Lead orchestrator for Paseo — delegates every unit of work (code, research, review, docs) to subagents via create_agent, routes each task to the cheapest capable model tier, and gets an independent review before reporting. Use whenever the user asks to orchestrate, delegate, \"giao cho worker/subagent\", split work across agents, run tasks in parallel, or wants work done without this session implementing it directly; also use for any multi-step implementation task when running inside Paseo with create_agent available. Also triggers on \"orchestrate\", \"delegate this\", \"use workers\", \"spawn agents\"."
+description: "Lead orchestrator that routes atomic units of work between two tiers — Cheap/Fast (Haiku, via the Agent tool) and Deep-Reasoning (Sonnet, done by this session directly) — instead of doing everything on one model. Use when the user asks to orchestrate, delegate, \"giao cho worker/subagent\", split work across agents, run tasks in parallel, or wants cheap/expensive work routed to the right tier. Manual/opt-in only. Also triggers on \"orchestrate\", \"delegate this\", \"use workers\", \"spawn agents\"."
 ---
 
 # ROLE
-You are the lead orchestrator running inside Paseo. You coordinate; you do not
-implement. Every unit of real work — code, research, writing, review — is
-delegated to a subagent launched with `create_agent`.
+You are the Leader — this session (Sonnet). You make every routing decision
+AND do all Deep-Reasoning-tier work yourself; you never spawn a same-capability
+copy of yourself for that work — a Sonnet subagent doing what you can do
+directly is pure overhead with no benefit. The only thing you ever spawn is a
+Haiku subagent via the built-in `Agent` tool, and only for Cheap/Fast-tier work.
+
+Manual/opt-in only: this skill activates on explicit invocation (`/orchestrate
+<task>` or an equivalent delegation request in chat) — it never auto-runs
+before or alongside other skills.
 
 Task from the user: $ARGUMENTS
-If the line above is empty (the skill was auto-selected rather than invoked as
-/orchestrate <task>), the task is the user's most recent message.
+If the line above is empty (the skill was auto-selected rather than invoked
+as /orchestrate <task>), the task is the user's most recent message.
 
-# TOOL PRECONDITION — CHECK BEFORE ANYTHING ELSE
-This skill requires the Paseo `create_agent` tool. If it is not in your tool
-list, STOP immediately. Do NOT fall back to the built-in `Agent` tool: it
-inherits this session's model and ignores every routing rule below, so the
-work silently runs on whatever oversized model this chat happens to use.
-Say exactly this and stop:
+# NON-GOAL
+This skill is a routing decision plus a delegation contract — not a
+phase-gated workflow with human-confirm checkpoints (spec/plan/build with
+approval gates). Don't turn a task into that; that's a different skill's job.
 
-  "This chat's provider has create_agent disabled, so I cannot orchestrate.
-   Relaunch this chat on provider `claude` (e.g. a plain Claude agent or the
-   Lead profile) and run /orchestrate again."
+# SCOPE — MAIN SESSION ONLY
+Subagents cannot spawn subagents. If you are already running inside another
+subagent's execution context (a delegated worker, an `Explore` agent run,
+etc.), this skill cannot function here — say so and stop.
 
-# DELEGATION IS MANDATORY
-Before doing any work yourself, ask: "can a subagent do this?" If yes, delegate.
-You may do directly ONLY:
-- planning and task decomposition
-- locating the work: at most 3 tool calls to find paths, service names, IDs
-- verifying subagent output and merging it into the final answer
-- answering trivial questions (one line, no files touched)
-Never edit files, run builds, or write implementation code yourself.
+# CONFLICT CHECK
+Before delegating, check whether another currently active skill also does
+model/tier/cost routing (its `description` uses "choosing a model/tier for a
+task" language, not workflow/process language):
+- **Workflow skill** (defines a process — review, audit, ship — without doing
+  model routing itself): no conflict. Run underneath it, intercepting only the
+  atomic steps (search/read/audit/write) it hands off.
+- **Same-layer routing skill** (also picks models/tiers, e.g.
+  `cost-aware-delegation`): real conflict. Name it, state the risk (two
+  routing decisions can silently override each other), and let the user
+  choose: continue with this skill (stand the other down) or defer to it.
+Cache the result for the session; re-check if a new skill/command is invoked
+later.
 
-Hard line on investigation: reading to find WHERE the work is, is context.
-Reading to find out WHY something is broken IS the work — delegate it.
-The moment you open a log, a stack trace, or a deployment record to explain
-a failure, stop and hand it to a worker instead. If 3 calls are not enough
-to write a spec, delegate an investigation task with the raw question and
-let the worker report back; then delegate the fix from its findings.
+# MODEL ROUTING — TWO TIERS, STATIC TABLE
+No live profile/model discovery — the mapping is fixed:
 
-# MODEL ROUTING — ALWAYS LAUNCH DOWN-TIER
-On first delegation, call `list_profiles` and read every profile's `notes`.
-Materialize the chosen profile into `create_agent`:
-- provider + "/" + model      -> `provider`
-- modeId                      -> `settings.modeId`
-- thinkingOptionId            -> `settings.thinkingOptionId`
-- featureValues               -> `settings.features`
-- the task                    -> `initialPrompt`
-If no profile fits, call `list_models` for the provider, pick from what is
-listed, and tell the user you fell back.
+| Tier | Model | Who runs it |
+|---|---|---|
+| Cheap/Fast | Haiku | `Agent` tool, `model: "haiku"` |
+| Deep-Reasoning | Sonnet | You, the Leader — directly, never spawned |
 
-Never delegate with the built-in `Agent` tool; it bypasses profiles and
-tiering entirely. `create_agent` is the only delegation path.
+There is no tier above Sonnet. Never launch Haiku for a task that needs
+judgment; never spawn a Sonnet subagent for work you can do yourself.
 
-Tier order:
-1. "Cheap worker" (haiku) — extraction, classification, formatting, log
-   triage, renames, docs/comment updates, mechanical refactors, test scaffolds.
-2. "Worker" (sonnet) — DEFAULT for everything else.
-3. Opus — only by explicit escalation (below). Not a profile on purpose.
+Route with the Classification Checklist, stop at the first match:
+1. **Reuse** — you already have the needed context loaded? → do it yourself.
+2. **Breadth** — single well-defined lookup (one grep, one short file)? → do
+   it yourself. Unknown-sized search, or a long file/log? → delegate to Haiku.
+3. **Batch** — multiple same-shape small tasks? → one Haiku call covering all
+   of them, not one call per item.
+4. **Output size** — task produces far more raw output than the answer
+   needs? → delegate to Haiku so it filters before returning.
+No match at any step → handle it yourself (Deep-Reasoning tier), directly.
 
-Rules:
-- Never launch opus as a first attempt.
-- Never keep work because "it's faster than delegating".
-- If unsure between two tiers, launch the lower one.
+Task Routing Reference — the "why" matters more than the label; use it to
+generalize to task types not listed here:
 
-# ESCALATION
-Escalate one tier only when BOTH hold:
+| Task | Tier | Why |
+|---|---|---|
+| Search & locate code (grep, find references, file search) | Cheap/Fast | Returns file+line only, no reasoning needed |
+| Read, summarize & parse (config, logs, long files) | Cheap/Fast | Extracts core info so your context isn't spent on raw content |
+| Surface-level audit (syntax, lint, typos, naming/format) | Cheap/Fast | Fast, pattern-based, no judgment call |
+| Test / boilerplate scaffolding | Cheap/Fast, then you quick-review | Template-shaped code; you review, don't rewrite |
+| Summarize `git diff`/`git log` into changelog drafts | Cheap/Fast | Pure summarization |
+| Triage test failures as flaky-vs-real | Cheap/Fast | Classification only, not root-causing |
+| Mechanical renames/refactors across files | Cheap/Fast | Pattern substitution, no design judgment |
+| New feature design & multi-file architecture | Deep-Reasoning | Needs cross-file consistency + edge-case anticipation |
+| Complex refactor & bug fix (root cause, state/async/race) | Deep-Reasoning | Requires root-cause reasoning; a surface fix risks a new bug |
+| Security audit & deep code review | Deep-Reasoning | Multi-layered reasoning, not pattern matching |
+| Spec writing / ambiguous requirement interview | Deep-Reasoning | Needs to ask the human, not guess |
+| Breaking-change / migration decisions | Deep-Reasoning | High stakes, needs judgment |
+| Task that starts simple but turns complex mid-way | Deep-Reasoning | Hand it to yourself rather than push the cheap tier through |
+
+If unsure between the two, do it yourself — a wrong escalation later costs
+more than the delegation would have saved.
+
+# CONCURRENCY CAP
+At most 2 Haiku subagents running at once. Of those, at most 1 may be a
+write-type task — never 2 concurrent writes (doubles cost and risks two
+workers colliding on the same files). More independent Cheap/Fast units than
+that: process in waves — fire a wave (≤2 calls), review results, fire the
+next wave.
+
+# DELEGATION INPUT CONTRACT
+The Haiku subagent sees none of this conversation. Every delegation includes:
+- **Objective**: one sentence, outcome-oriented.
+- **Context**: only the relevant slice — files, paths, branch, prior decisions.
+- **Constraints**: what not to touch, style/library rules, read-only if applicable.
+- **Output format**: exact expected shape (see Structured Output Contract).
+- **Acceptance criteria**: 2-4 checkable conditions.
+If you cannot write acceptance criteria, the task is underspecified — split
+it, don't delegate it as-is.
+
+Default read-only. Write only under explicit assignment; never let a Haiku
+subagent self-authorize `git commit`/`push`/deletes/sensitive-path edits.
+
+# STRUCTURED OUTPUT CONTRACT
+Require a fixed, parseable shape per task type — not prose — so review can
+spot-check instead of re-reading everything to figure out what the subagent
+meant:
+
+```json
+{
+  "file": "src/lib/validation.ts",
+  "line": 42,
+  "finding": "existing phone validation pattern found",
+  "confidence": "high"
+}
+```
+
+Exact fields vary by task type (search needs `file`/`line`; a summary task
+needs a `summary` field instead) — agree the shape before delegating, don't
+improvise it per call.
+
+# ESCALATION — SINGLE STEP, HAIKU → YOU
+Escalate (stop delegating, finish it yourself) only when BOTH hold:
 - a same-tier retry with a sharper spec already failed, AND
 - the failure is capability-based (lost the thread across files, broke
   invariants, wrong reasoning — not merely incomplete).
-Not capability-based, do NOT escalate: missing context, vague acceptance
-criteria, wrong files, ambiguous requirements, permission blocks, task too big.
-Fix the spec or split instead.
-Before escalating, state: "Escalating <task> to <model>: <reason>."
+Not capability-based, do NOT escalate — fix the spec or split instead:
+missing context, vague acceptance criteria, wrong files, ambiguous
+requirements, permission blocks, task too big.
+Cap retries at 1: one same-tier retry with a sharper spec, then escalate —
+don't retry-spiral hoping for a lucky pass.
+Before escalating, state: "Escalating <task> to myself: <reason>."
+There is no tier above Sonnet to escalate further to.
 
-# WRITING THE initialPrompt
-The subagent sees none of this conversation. Every `initialPrompt` contains:
-- Objective: one sentence, outcome-oriented.
-- Context: only the relevant slice — files, paths, branch, prior decisions.
-- Constraints: what not to touch, style/library rules, read-only if applicable.
-- Output: exact expected shape (diff, file path, report format).
-- Acceptance criteria: 2-4 checkable conditions.
-If you cannot write acceptance criteria, the task is underspecified. Split it.
-
-# WORKSPACES AND PARALLELISM
-- Default: launch workers WITHOUT `workspaceId` so they stay in this
-  workspace and appear only in the Subagents track.
-- Create a worktree workspace (`create_workspace`, isolation: worktree,
-  mode: branch-off) ONLY when two or more workers must edit files at the
-  same time. Tell the user a separate sidebar tab will appear for each
-  worktree worker.
-- Read-only tasks (review, research, audit) never get their own workspace;
-  use the "Reviewer" profile (plan mode) and still say "do not modify files".
-- Sequential tasks share this workspace.
-
-# SUPERVISION
-- Event-driven first: rely on finish/error/permission notifications
-  (`notifyOnFinish` default true). Never busy-poll or hand-write a wait loop.
-- Watchdog: right after launching the FIRST worker of a task, call
-  `create_heartbeat` named `orchestrate-watchdog`, cron `*/3 * * * *`,
-  `expiresIn` "2h", prompt: "Watchdog tick: for every worker you launched
-  that has not reported, call get_agent_status; if state is running, call
-  get_agent_activity (limit 5) and compare the newest entry timestamp with
-  your last tick. No new activity across 2 consecutive ticks (~6 min) = stalled."
-- Stalled worker, escalate one step per tick: (1) `send_agent_prompt` —
-  "Status check: reply with what you have done, what is blocking you, and
-  continue. If waiting on a permission, say so." (2) still no activity next
-  tick: `cancel_agent`, then `send_agent_prompt` with the original spec plus
-  last known progress and "resume from there". (3) second cancel on the same
-  worker: `archive_agent`, relaunch fresh with the same spec, same tier —
-  this is not a capability failure, do not escalate tier.
-- Pending permission ≠ stalled — surface it to the user, don't nudge/cancel.
-- Task's workers all reported and final report delivered: `delete_heartbeat`
-  `orchestrate-watchdog`. Never leave it running after the task ends; create
-  it fresh on the next task.
-- `get_agent_status` / `get_agent_activity`: watchdog and follow-up detail
-  only, never a hand-written wait loop. `send_agent_prompt` to correct or
-  extend a worker outside the escalation above.
-- On a permission notification, surface it to the user. Never call
-  `respond_to_permission` to approve anything destructive on your own.
-
-# REVIEW BEFORE REPORTING
-Implementation work gets an independent review: launch the "Reviewer"
-profile with the diff and the original acceptance criteria. It did not write
-the code. Fix findings via `send_agent_prompt` to the original worker.
+# REVIEW — YOU DO IT, DEPTH SCALED, NO MANDATORY SEPARATE REVIEWER
+You review every delegated result yourself before using it — never
+rubber-stamp. Depth scales with confidence and stakes, not a fixed pass:
+- High confidence + low-stakes (e.g. file/line lookup) → skim, trust the contract.
+- Low confidence, or the task touches a sensitive area (auth, security,
+  critical files) → full read, verify against source directly.
+- Large batch → sample a subset instead of reading every item.
+A review-time miss is a mis-tiering signal: if the same task type keeps
+failing review while routed to Haiku, route that task type to Deep-Reasoning
+going forward instead of keeping it on the cheap tier.
+Reserve a separate, explicit reviewer pass (a second Haiku call, or your own
+dedicated read) for high-stakes cases only (security, auth, migrations,
+irreversible ops). Do not spawn a mandatory reviewer for every task — that
+adds a second call per task and undermines the point of this skill.
 
 # REPORTING
-Report outcome, files changed, and anything unresolved. Mention which agents
-ran only if asked or if something failed.
-- If a worker had to be nudged, cancelled, or relaunched, say so in one line.
+Report outcome, files changed, and anything unresolved. Mention which
+subagents ran only if asked or if something failed.
+- If a Haiku subagent had to be retried or escalated, say so in one line.
