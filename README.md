@@ -9,6 +9,15 @@ on one model.
 [![License: MIT](https://img.shields.io/github/license/vietnguyenhoangw/vnw-orchestrate-skill)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/vietnguyenhoangw/vnw-orchestrate-skill)](https://github.com/vietnguyenhoangw/vnw-orchestrate-skill/releases)
 
+> [!NOTE]
+> This is a personal/internal fork of
+> [yanmad27/my-orchestrate-skill](https://github.com/yanmad27/my-orchestrate-skill).
+> All credit for the original lead-orchestrator / cost-tiered-delegation idea
+> goes to **[@yanmad27](https://github.com/yanmad27)** — see [Credits](#credits).
+> This fork reworks the same idea for a lighter, budget-conscious setup: it
+> drops the [Paseo](https://paseo.sh) dependency and runs entirely on Claude
+> Code's native `Agent` tool instead, for internal use.
+
 ## Contents
 
 - [Quick start](#quick-start)
@@ -17,6 +26,7 @@ on one model.
 - [Upgrade](#upgrade)
 - [Troubleshooting](#troubleshooting)
 - [Usage](#usage)
+- [Credits](#credits)
 
 ## Quick start
 
@@ -161,3 +171,26 @@ language:
 - **Don't expect a mandatory review subagent:** the Leader reviews delegated
   work itself; a second reviewer is only spun up for explicitly high-stakes
   work (security, auth, migrations, irreversible ops).
+
+## Credits
+
+This project started as a fork of
+[yanmad27/my-orchestrate-skill](https://github.com/yanmad27/my-orchestrate-skill)
+by **[@yanmad27](https://github.com/yanmad27)**. The core idea — a lead
+session that never implements directly, routes every unit of work to the
+cheapest capable model tier, and reviews before reporting back — is entirely
+theirs; full credit for the original design and skill structure goes to the
+original author.
+
+This fork (`vnw-orchestrate-skill`) reimplements that idea for personal,
+budget-conscious use: the upstream version runs on top of
+[Paseo](https://paseo.sh) (a separate daemon with its own `create_agent` MCP
+tool, agent profiles, worktree management, and a watchdog/heartbeat
+supervision loop). Since Claude Code's built-in `Agent` tool already accepts
+a per-call `model` override, this fork drops the Paseo dependency entirely
+and reimplements the same routing philosophy directly on top of it — fewer
+moving parts, nothing extra to install or keep running, at the cost of
+Paseo's multi-workspace/worktree and long-running-agent supervision features.
+If you want the original, more feature-complete Paseo-integrated version,
+use [the upstream repo](https://github.com/yanmad27/my-orchestrate-skill)
+instead.
