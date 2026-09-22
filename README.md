@@ -7,7 +7,6 @@ subagent via the built-in `Agent` tool for Cheap/Fast work, or itself
 on one model.
 
 [![License: MIT](https://img.shields.io/github/license/vietnguyenhoangw/vnw-orchestrate-skill)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/vietnguyenhoangw/vnw-orchestrate-skill)](https://github.com/vietnguyenhoangw/vnw-orchestrate-skill/releases)
 
 > [!NOTE]
 > This is a personal/internal fork of
