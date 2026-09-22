@@ -1,8 +1,8 @@
 {
   "name": "orchestrate",
-  "description": "Lead orchestrator for Paseo — delegates every unit of work (code, research, review, docs) to subagents via create_agent, routes each task to the cheapest capable model tier, and gets an independent review before reporting.",
+  "description": "Lead orchestrator that routes atomic units of work between a Cheap/Fast tier (Haiku, via the Agent tool) and a Deep-Reasoning tier (Sonnet, handled directly) instead of doing everything on one model.",
   "version": "1.2.1",
   "author": {
-    "name": "yanmad27"
+    "name": "vietnguyenhoangw"
   }
 }
