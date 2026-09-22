@@ -88,21 +88,14 @@ for phrase in "${BODY_PHRASES[@]}"; do
   fi
 done
 
-# --- plugin.json / marketplace.json ---------------------------------------
+# --- plugin.json ------------------------------------------------------------
 
 PLUGIN_JSON=".claude-plugin/plugin.json"
-MARKETPLACE_JSON=".claude-plugin/marketplace.json"
 
 if jq empty "$PLUGIN_JSON" 2>/dev/null; then
   ok "plugin.json is valid JSON"
 else
   fail "plugin.json is not valid JSON"
-fi
-
-if jq empty "$MARKETPLACE_JSON" 2>/dev/null; then
-  ok "marketplace.json is valid JSON"
-else
-  fail "marketplace.json is not valid JSON"
 fi
 
 if [ "$(jq -r '.name' "$PLUGIN_JSON")" = "orchestrate" ]; then
@@ -112,27 +105,11 @@ else
 fi
 
 PLUGIN_VERSION="$(jq -r '.version' "$PLUGIN_JSON")"
-MARKETPLACE_VERSION="$(jq -r '.plugins[0].version' "$MARKETPLACE_JSON")"
 
 if [[ "$PLUGIN_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   ok "plugin.json .version ($PLUGIN_VERSION) matches semver pattern"
 else
   fail "plugin.json .version ($PLUGIN_VERSION) does not match ^[0-9]+.[0-9]+.[0-9]+$"
-fi
-
-if [ "$PLUGIN_VERSION" = "$MARKETPLACE_VERSION" ]; then
-  ok "plugin.json .version equals marketplace.json .plugins[0].version ($PLUGIN_VERSION)"
-else
-  fail "version mismatch: plugin.json=$PLUGIN_VERSION marketplace.json=$MARKETPLACE_VERSION"
-fi
-
-PLUGIN_DESC="$(jq -r '.description' "$PLUGIN_JSON")"
-MARKETPLACE_DESC="$(jq -r '.plugins[0].description' "$MARKETPLACE_JSON")"
-
-if [ "$PLUGIN_DESC" = "$MARKETPLACE_DESC" ]; then
-  ok "plugin.json and marketplace.json descriptions match"
-else
-  fail "plugin.json and marketplace.json descriptions differ"
 fi
 
 # --- .release-please-manifest.json -----------------------------------------

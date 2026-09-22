@@ -30,16 +30,12 @@ on one model.
 
 ## Quick start
 
-```
-/plugin marketplace add vietnguyenhoangw/vnw-orchestrate-skill
-/plugin install orchestrate@vnw-orchestrate-skill
+```sh
+git clone https://github.com/vietnguyenhoangw/vnw-orchestrate-skill.git && cd vnw-orchestrate-skill && ./install.sh
 ```
 
-Run `/orchestrate <task>` in any Claude Code session.
-
-> [!NOTE]
-> The two `/plugin` commands must run as separate turns in Claude Code.
-> See [Install](#install) for the clone/manual path.
+Run `/orchestrate <task>` in any Claude Code session. See [Install](#install)
+for details.
 
 ## Requirements
 
@@ -51,25 +47,6 @@ override.
 
 ## Install
 
-### Option A: plugin marketplace
-
-Run these as two separate commands in Claude Code (they cannot be combined
-in one turn):
-
-1. Add the marketplace:
-
-   ```
-   /plugin marketplace add vietnguyenhoangw/vnw-orchestrate-skill
-   ```
-
-2. Install the plugin:
-
-   ```
-   /plugin install orchestrate@vnw-orchestrate-skill
-   ```
-
-### Option B: clone + script
-
 ```sh
 git clone https://github.com/vietnguyenhoangw/vnw-orchestrate-skill.git
 cd vnw-orchestrate-skill
@@ -80,31 +57,12 @@ This copies `skills/orchestrate` to `~/.claude/skills/orchestrate`.
 
 ## Upgrade
 
-### Plugin (Option A)
-
-```
-/plugin marketplace update vnw-orchestrate-skill
-```
-
-Then, in a terminal (not inside a Claude Code session):
-
-```sh
-claude plugin update orchestrate@vnw-orchestrate-skill
-```
-
-If you have a session open, run `/reload-plugins` there afterward to load
-the change. Auto-update is off by default for third-party marketplaces like
-this one. To enable it: `/plugin` → **Marketplaces** → select
-`vnw-orchestrate-skill` → **Enable auto-update**.
-
-### Clone (Option B)
-
 ```sh
 cd vnw-orchestrate-skill && git pull && ./install.sh
 ```
 
-**Check version:** `/plugin` → **Installed** tab, or
-`claude plugin details orchestrate@vnw-orchestrate-skill`. Compare with the
+**Check version:** the cloned repo's `version.txt` (or
+`.claude-plugin/plugin.json` → `.version`). Compare with the
 [releases page](https://github.com/vietnguyenhoangw/vnw-orchestrate-skill/releases).
 
 ## Troubleshooting
@@ -113,7 +71,7 @@ cd vnw-orchestrate-skill && git pull && ./install.sh
 |---|---|
 | `/orchestrate` doesn't seem to route anything to Haiku | Check that the session actually invoked the skill (`/orchestrate <task>` or an explicit delegation phrase) — it is manual/opt-in only, it never auto-runs. |
 | Everything gets handled directly, nothing gets delegated | That's expected for reuse/breadth-limited tasks — see the Classification Checklist in `skills/orchestrate/SKILL.md`. Delegation is the default only when a task actually clears that checklist. |
-| Skill not found after install | Re-run `/plugin install orchestrate@vnw-orchestrate-skill`, or for the clone path, re-run `./install.sh` and restart the session. |
+| Skill not found after install | Re-run `./install.sh` from the cloned repo and restart the session. |
 
 ## Usage
 

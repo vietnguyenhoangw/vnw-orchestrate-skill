@@ -12,8 +12,8 @@ Invariants it checks:
   Deep-Reasoning tier labels, the Classification Checklist, the
   never-launch-Haiku-for-judgment rule, the Concurrency Cap section, and
   `$ARGUMENTS`.
-- `.claude-plugin/plugin.json` + `marketplace.json`: valid JSON, matching
-  `name`, semver `version`, and `description`.
+- `.claude-plugin/plugin.json`: valid JSON, `name == "orchestrate"`, semver
+  `version`.
 - `install.sh`: valid syntax/lint, copies `skills/orchestrate` into
   `~/.claude/skills/orchestrate` locally, and fails cleanly when piped
   without a local checkout.
@@ -26,6 +26,6 @@ PRs need the `validate` check green before merge.
 Commits must follow [Conventional Commits](https://www.conventionalcommits.org/):
 `feat:` bumps minor, `fix:`/`docs:`/`chore:` bump patch, `feat!:` or a
 `BREAKING CHANGE` footer bumps major. release-please opens/updates a
-`chore(main): release X.Y.Z` PR from these commits; merging it bumps both
-`.claude-plugin` JSON files, `version.txt`, tags `vX.Y.Z`, and publishes the
+`chore(main): release X.Y.Z` PR from these commits; merging it bumps
+`.claude-plugin/plugin.json`, `version.txt`, tags `vX.Y.Z`, and publishes the
 GitHub Release. Do not hand-edit versions.
